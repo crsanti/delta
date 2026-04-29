@@ -3,15 +3,20 @@ name: Continuous Deployment
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
+      - "[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
   publish:
     name: Publishing for ${{ matrix.job.os }}
     runs-on: ${{ matrix.job.os }}
+    permissions:
+      contents: write
     strategy:
       matrix:
         job:
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            use-cross: false
           - os: macos-latest
             target: aarch64-apple-darwin
             use-cross: false
@@ -48,7 +53,7 @@ jobs:
           tool: cross
       - name: Cargo build
         env:
-          MACOSX_DEPLOYMENT_TARGET: 10.7
+          MACOSX_DEPLOYMENT_TARGET: 15.0
         shell: bash
         run: |
           if [[ "${{ matrix.job.use-cross }}" == "true" ]]; then
@@ -86,23 +91,3 @@ jobs:
             git-delta*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-to-cargo:
-    name: Publishing to Cargo
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo publish --token ${{ secrets.CARGO_API_KEY }} --allow-dirty
-
-  publish-to-winget:
-    name: Publish to WinGet
-    runs-on: ubuntu-latest
-    needs: publish
-    steps:
-      - uses: vedantmgoyal2009/winget-releaser@v2
-        with:
-          identifier: dandavison.delta
-          version: ${{ github.ref_name }}
-          installers-regex: '-pc-windows-msvc\.zip$'
-          token: ${{ secrets.WINGET_TOKEN }}
